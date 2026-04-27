@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vouch — The Trust Layer for Hiring</title>
+<script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+<style>
+  :root {
+    --teal: #2DD4BF;
+    --teal-dark: #0D9488;
+    --black: #0a0a0a;
+    --dark: #111111;
+    --mid: #1a1a1a;
+    --card: #1e1e1e;
+    --light-bg: #f5f5f0;
+    --text-muted: #888;
+    --text-dim: #555;
+    --white: #ffffff;
+    --off-white: #e8e8e0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; scroll-snap-type: y mandatory; overflow-y: scroll; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--black);
+    color: var(--white);
+    overflow-x: hidden;
+  }
+
+  /* ── NAVIGATION ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 48px;
+    backdrop-filter: blur(20px);
+    background: rgba(10,10,10,0.7);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+  }
+
+  .nav-logo {
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: -1px;
+  }
+  .nav-logo span { color: var(--teal); }
+
+  .nav-dots {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .nav-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    cursor: pointer;
+    transition: all 0.3s;
+    border: none;
+  }
+  .nav-dot.active { background: var(--teal); transform: scale(1.4); }
+
+  .nav-arrows {
+    display: flex;
+    gap: 12px;
+  }
+  .nav-arrow {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: white;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+  }
+  .nav-arrow:hover { background: var(--teal); border-color: var(--teal); }
+
+  .pdf-btn {
+    background: rgba(45,212,191,0.12);
+    border: 1px solid rgba(45,212,191,0.3);
+    color: var(--teal);
+    padding: 8px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .pdf-btn:hover { background: var(--teal); color: var(--black); }
+
+  /* Print / PDF styles */
+  @media print {
+    html { scroll-snap-type: none; }
+    nav, .progress-bar, .slide-counter, .scroll-hint, .nav-arrows { display: none !important; }
+    .slide {
+      height: 100vh;
+      page-break-after: always;
+      break-after: page;
+      padding: 48px 60px;
+    }
+    .floating-stat { display: none; }
+    #chart-applications, #chart-flywheel { height: 220px !important; }
+    .gap-card, .why-card { opacity: 1 !important; transform: none !important; }
+    @page { size: landscape; margin: 0; }
+  }
+
+  /* ── SLIDES ── */
+  .slide {
+    height: 100vh;
+    max-height: 100vh;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 72px 60px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── SLIDE 1: COVER ── */
+  #slide-1 {
+    background: var(--black);
+    align-items: flex-start;
+  }
+
+  .cover-bg {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 80% 60% at 70% 50%, rgba(45,212,191,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cover-tag {
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.3s ease forwards;
+  }
+
+  .cover-title {
+    font-size: clamp(60px, 10vw, 140px);
+    font-weight: 900;
+    line-height: 0.85;
+    letter-spacing: -4px;
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fadeUp 0.9s 0.5s ease forwards;
+  }
+  .cover-title .u-letter {
+    color: var(--teal);
+    display: inline-block;
+    animation: letterPop 1s 1.2s ease forwards;
+  }
+
+  .cover-tagline {
+    font-size: clamp(16px, 2vw, 26px);
+    font-weight: 300;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+    opacity: 0;
+    animation: fadeUp 0.8s 0.8s ease forwards;
+  }
+
+  .cover-meta {
+    display: flex;
+    gap: 32px;
+    opacity: 0;
+    animation: fadeUp 0.8s 1s ease forwards;
+    flex-wrap: wrap;
+  }
+  .cover-meta-item { font-size: 13px; color: var(--text-muted); }
+  .cover-meta-item span { color: var(--teal); font-weight: 600; }
+
+  .cover-line {
+    position: absolute;
+    bottom: 40px; left: 60px;
+    width: 200px; height: 3px;
+    background: var(--teal);
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: lineGrow 0.8s 1.2s ease forwards;
+  }
+
+  .floating-stat {
+    position: absolute;
+    right: 80px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    opacity: 0;
+    animation: fadeLeft 0.8s 1.4s ease forwards;
+  }
+  .f-stat {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-left: 3px solid var(--teal);
+    padding: 20px 28px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+  }
+  .f-stat-num { font-size: 28px; font-weight: 900; color: var(--teal); line-height: 1; }
+  .f-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; max-width: 160px; }
+
+  /* ── SLIDE 2: PROBLEM ── */
+  #slide-2 { background: var(--black); }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 20px;
+  }
+
+  .mega-title {
+    font-size: clamp(36px, 5.5vw, 72px);
+    font-weight: 900;
+    line-height: 0.92;
+    letter-spacing: -2px;
+    margin-bottom: 20px;
+  }
+
+  .slide-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+    flex: 1;
+  }
+
+  .problem-text {
+    font-size: 15px;
+    color: var(--text-muted);
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .stat-callout {
+    background: rgba(45,212,191,0.08);
+    border: 1px solid rgba(45,212,191,0.2);
+    border-radius: 12px;
+    padding: 18px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .stat-callout-num { font-size: 40px; font-weight: 900; color: var(--teal); line-height: 1; }
+  .stat-callout-text { font-size: 13px; color: var(--off-white); line-height: 1.5; }
+
+  #chart-applications { width: 100%; height: 280px; overflow: visible; }
+
+  /* ── SLIDE 3: GAP ── */
+  #slide-3 {
+    background: var(--light-bg);
+    color: var(--black);
+  }
+
+  .gap-quote {
+    font-size: clamp(22px, 3vw, 40px);
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -1px;
+    margin-bottom: 32px;
+    max-width: 900px;
+    color: var(--black);
+  }
+  .gap-quote em {
+    color: var(--teal-dark);
+    font-style: normal;
+    text-decoration: underline;
+    text-underline-offset: 6px;
+  }
+
+  .gap-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  .gap-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 24px;
+    border-top: 4px solid var(--teal);
+    transform: translateY(30px);
+    opacity: 0;
+    transition: all 0.5s ease;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  }
+  .gap-card.visible { transform: translateY(0); opacity: 1; }
+  .gap-card:nth-child(2) { transition-delay: 0.15s; }
+  .gap-card:nth-child(3) { transition-delay: 0.3s; }
+
+  .gap-card-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--teal-dark);
+    margin-bottom: 16px;
+  }
+  .gap-card-num {
+    font-size: 48px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--black);
+    margin-bottom: 10px;
+  }
+  .gap-card-desc { font-size: 14px; color: var(--text-dim); line-height: 1.6; }
+
+  /* ── SLIDE 4: SOLUTION ── */
+  #slide-4 { background: var(--dark); }
+
+  .solution-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .solution-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 20px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .step::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(45,212,191,0.08), transparent);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .step.active { border-color: var(--teal); }
+  .step.active::before { opacity: 1; }
+
+  .step-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+  .step.active .step-num {
+    background: var(--teal);
+    color: var(--black);
+  }
+  .step-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: var(--text-muted); }
+
+  /* Product mockup */
+  .product-demo {
+    background: var(--card);
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+    overflow: hidden;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+  }
+
+  .demo-header {
+    background: rgba(255,255,255,0.04);
+    padding: 16px 20px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .demo-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .demo-dot:nth-child(1) { background: #ff5f57; }
+  .demo-dot:nth-child(2) { background: #ffbd2e; }
+  .demo-dot:nth-child(3) { background: #28ca41; }
+
+  .demo-body { padding: 28px; }
+
+  .demo-panel { display: none; }
+  .demo-panel.active { display: block; animation: fadeIn 0.4s ease; }
+
+  .demo-title { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .score-label { font-size: 13px; color: var(--off-white); width: 120px; flex-shrink: 0; }
+  .score-bar-bg {
+    flex: 1;
+    height: 6px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal-dark), var(--teal));
+    border-radius: 3px;
+    width: 0;
+    transition: width 1s ease;
+  }
+  .score-val { font-size: 13px; font-weight: 700; color: var(--teal); width: 30px; text-align: right; }
+
+  .demo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 16px;
+  }
+  .badge-green { background: rgba(45,212,191,0.15); color: var(--teal); }
+  .badge-red { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .badge-yellow { background: rgba(234,179,8,0.15); color: #eab308; }
+
+  /* ── SLIDE 5: MARKET ── */
+  #slide-5 {
+    background: var(--light-bg);
+    color: var(--black);
+  }
+
+  .market-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+  }
+
+  .tam-visual {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 280px;
+  }
+
+  .circle-outer {
+    position: absolute;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  .c1 {
+    width: 270px; height: 270px;
+    background: rgba(45,212,191,0.06);
+    border: 2px dashed rgba(45,212,191,0.2);
+  }
+  .c2 {
+    width: 190px; height: 190px;
+    background: rgba(45,212,191,0.10);
+    border: 2px solid rgba(45,212,191,0.3);
+  }
+  .c3 {
+    width: 115px; height: 115px;
+    background: rgba(45,212,191,0.25);
+    border: 2px solid var(--teal);
+    text-align: center;
+    padding: 20px;
+  }
+  .circle-label { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--teal-dark); }
+  .circle-num { font-size: 18px; font-weight: 900; color: var(--black); line-height: 1.1; }
+  .circle-sub { font-size: 10px; color: var(--text-dim); }
+
+  .tam-label {
+    position: absolute;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+  .tam-label.top { top: 0; }
+  .tam-label.mid { top: 55px; }
+
+  .sector-list { margin-top: 32px; }
+  .sector-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+  }
+  .sector-bar { width: 4px; height: 36px; background: var(--teal); border-radius: 2px; flex-shrink: 0; }
+  .sector-name { font-size: 16px; font-weight: 700; color: var(--black); }
+  .sector-desc { font-size: 13px; color: var(--text-dim); }
+
+  /* ── SLIDE 6: BUSINESS MODEL ── */
+  #slide-6 { background: var(--black); }
+
+  .pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 24px;
+  }
+
+  .pricing-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 24px 24px;
+    border: 1px solid rgba(255,255,255,0.07);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.3s, border-color 0.3s;
+  }
+  .pricing-card:hover { transform: translateY(-8px); border-color: rgba(45,212,191,0.3); }
+  .pricing-card.featured {
+    border-color: var(--teal);
+    background: linear-gradient(160deg, rgba(45,212,191,0.08) 0%, var(--card) 60%);
+  }
+  .pricing-card.featured::before {
+    content: 'MOST POPULAR';
+    position: absolute;
+    top: 20px; right: 20px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--teal);
+    background: rgba(45,212,191,0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(45,212,191,0.2);
+  }
+
+  .pricing-tier { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--teal); margin-bottom: 8px; }
+  .pricing-name { font-size: 24px; font-weight: 800; margin-bottom: 24px; }
+  .pricing-price { font-size: 44px; font-weight: 900; line-height: 1; color: var(--white); margin-bottom: 4px; }
+  .pricing-period { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+  .pricing-features { list-style: none; margin-bottom: 28px; }
+  .pricing-features li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--off-white);
+    margin-bottom: 12px;
+  }
+  .pricing-features li::before {
+    content: '—';
+    color: var(--teal);
+    font-weight: 900;
+  }
+
+  .pricing-arr {
+    font-size: 13px;
+    color: var(--text-muted);
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .pricing-arr span { color: var(--teal); font-weight: 700; }
+
+  .arrow-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: var(--teal);
+    opacity: 0.4;
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  /* ── SLIDE 7: WHY NOW ── */
+  #slide-7 { background: var(--dark); }
+
+  .why-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 24px;
+  }
+
+  .why-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 16px;
+    padding: 22px 22px;
+    transition: all 0.3s;
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  .why-card.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .why-card:hover {
+    background: rgba(45,212,191,0.05);
+    border-color: rgba(45,212,191,0.2);
+  }
+
+  .why-num-label { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--teal); margin-bottom: 16px; }
+  .why-card-title { font-size: 20px; font-weight: 800; margin-bottom: 16px; }
+  .why-big-num { font-size: 52px; font-weight: 900; color: var(--white); line-height: 1; margin-bottom: 10px; }
+  .why-card-desc { font-size: 13px; color: var(--text-muted); line-height: 1.7; }
+
+  /* ── SLIDE 8: DEFENSIBILITY ── */
+  #slide-8 {
+    background: var(--black);
+  }
+
+  .defense-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    align-items: center;
+    margin-top: 20px;
+  }
+
+  .moat-list { display: flex; flex-direction: column; gap: 12px; }
+
+  .moat-item {
+    display: flex;
+    gap: 16px;
+    padding: 18px;
+    background: var(--card);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+    transition: all 0.3s;
+  }
+  .moat-item:hover { border-color: rgba(45,212,191,0.3); background: rgba(45,212,191,0.03); }
+
+  .moat-icon {
+    width: 48px; height: 48px;
+    border-radius: 12px;
+    background: rgba(45,212,191,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+  .moat-title { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .moat-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+  #chart-flywheel { width: 100%; height: 300px; }
+
+  /* ── SLIDE 9: TEAM ── */
+  #slide-9 {
+    background: var(--light-bg);
+    color: var(--black);
+  }
+
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-top: 24px;
+  }
+
+  .team-card {
+    background: white;
+    border-radius: 16px;
+    padding: 24px 24px;
+    box-shadow: 0 4px 32px rgba(0,0,0,0.08);
+    border-top: 4px solid var(--teal);
+    transition: transform 0.3s;
+  }
+  .team-card:hover { transform: translateY(-6px); }
+
+  .team-avatar {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--teal), var(--teal-dark));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 900;
+    color: var(--black);
+    margin-bottom: 14px;
+  }
+  .team-name { font-size: 18px; font-weight: 900; color: var(--black); margin-bottom: 2px; }
+  .team-role { font-size: 12px; color: var(--teal-dark); font-weight: 600; margin-bottom: 14px; }
+  .team-title-badge {
+    display: inline-block;
+    background: rgba(13,148,136,0.1);
+    color: var(--teal-dark);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-bottom: 14px;
+  }
+
+  .team-divider { height: 1px; background: rgba(0,0,0,0.08); margin-bottom: 24px; }
+
+  .team-bullet {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+  .team-bullet-bar { width: 3px; height: 16px; background: var(--teal); border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+  .team-bullet-text { font-size: 12px; color: var(--text-dim); line-height: 1.5; }
+
+  /* ── SLIDE 10: ASK ── */
+  #slide-10 { background: var(--black); }
+
+  .ask-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 48px;
+    align-items: center;
+  }
+
+  .ask-headline {
+    font-size: clamp(28px, 3.5vw, 52px);
+    font-weight: 900;
+    line-height: 1.0;
+    letter-spacing: -2px;
+  }
+  .ask-headline .teal { color: var(--teal); }
+
+  .ask-sub {
+    font-size: 20px;
+    color: var(--text-muted);
+    margin-top: 24px;
+    margin-bottom: 40px;
+  }
+
+  .ask-contact {
+    font-size: 18px;
+    color: var(--teal);
+    font-weight: 600;
+  }
+
+  .ask-card {
+    background: var(--card);
+    border-radius: 20px;
+    padding: 32px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .ask-amount {
+    font-size: 72px;
+    font-weight: 900;
+    line-height: 1;
+    color: var(--white);
+    margin-bottom: 4px;
+  }
+  .ask-currency { font-size: 16px; color: var(--text-muted); margin-bottom: 24px; }
+
+  .ask-divider { height: 1px; background: rgba(255,255,255,0.08); margin: 32px 0; }
+
+  .ask-use-title { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--teal); margin-bottom: 24px; }
+
+  .use-bar-row {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+  .use-bar-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .use-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: var(--off-white);
+  }
+  .use-bar-label span { color: var(--teal); font-weight: 700; }
+  .use-bar-bg {
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .use-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--teal-dark), var(--teal));
+    border-radius: 4px;
+    width: 0;
+    transition: width 1.2s ease;
+  }
+
+  .targets-box {
+    background: rgba(45,212,191,0.06);
+    border: 1px solid rgba(45,212,191,0.15);
+    border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .targets-label { font-size: 11px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: var(--teal); margin-bottom: 12px; }
+  .targets-list { display: flex; gap: 24px; flex-wrap: wrap; }
+  .target-item { font-size: 14px; color: var(--off-white); }
+  .target-item strong { color: var(--white); font-weight: 800; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fadeLeft {
+    from { opacity: 0; transform: translate(30px, -50%); }
+    to { opacity: 1; transform: translate(0, -50%); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes lineGrow {
+    to { transform: scaleX(1); }
+  }
+  @keyframes letterPop {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  @keyframes countUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Particle effect for cover */
+  .particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute;
+    width: 2px;
+    height: 2px;
+    background: var(--teal);
+    border-radius: 50%;
+    animation: float linear infinite;
+    opacity: 0;
+  }
+  @keyframes float {
+    0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10% { opacity: 0.6; }
+    90% { opacity: 0.3; }
+    100% { transform: translateY(-10vh) translateX(var(--drift)); opacity: 0; }
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--teal-dark), var(--teal));
+    z-index: 200;
+    transition: width 0.3s ease;
+  }
+
+  /* Slide counter */
+  .slide-counter {
+    position: fixed;
+    bottom: 30px;
+    right: 40px;
+    font-size: 12px;
+    color: var(--text-muted);
+    z-index: 100;
+    font-weight: 600;
+    letter-spacing: 2px;
+  }
+  .slide-counter span { color: var(--teal); }
+
+  /* Source footnote */
+  .source {
+    position: absolute;
+    bottom: 24px;
+    left: 80px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    font-style: italic;
+  }
+  #slide-3 .source, #slide-5 .source, #slide-9 .source { color: rgba(0,0,0,0.25); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .slide { padding: 80px 32px 40px; }
+    .slide-grid-2, .solution-grid, .market-grid, .ask-grid, .team-grid, .defense-grid { grid-template-columns: 1fr; }
+    .gap-cards, .pricing-grid, .why-grid { grid-template-columns: 1fr; }
+    .floating-stat { display: none; }
+    nav { padding: 16px 24px; }
+    .nav-dots { display: none; }
+  }
+
+  /* Scroll indicator */
+  .scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    opacity: 0;
+    animation: fadeUp 0.8s 2s ease forwards;
+  }
+  .scroll-hint-text { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--text-muted); }
+  .scroll-hint-arrow {
+    width: 24px; height: 24px;
+    border-right: 2px solid var(--teal);
+    border-bottom: 2px solid var(--teal);
+    transform: rotate(45deg);
+    animation: bounce 1.5s ease infinite;
+  }
+  @keyframes bounce {
+    0%, 100% { transform: rotate(45deg) translateY(0); }
+    50% { transform: rotate(45deg) translateY(6px); }
+  }
+
+  .teal { color: var(--teal); }
+
+  /* Animated counter */
+  .counter { display: inline-block; }
+</style>
+</head>
+<body>
+
+<!-- Progress Bar -->
+<div class="progress-bar" id="progressBar"></div>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-logo">Vo<span>u</span>ch</div>
+  <div class="nav-dots" id="navDots"></div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <button class="pdf-btn" id="pdfBtn" onclick="savePDF()">⬇ Save PDF</button>
+    <div class="nav-arrows">
+      <button class="nav-arrow" id="prevBtn">←</button>
+      <button class="nav-arrow" id="nextBtn">→</button>
+    </div>
+  </div>
+</nav>
+
+<!-- Slide Counter -->
+<div class="slide-counter"><span id="currentSlide">01</span> / 10</div>
+
+<!-- ══════════════ SLIDE 1: COVER ══════════════ -->
+<section class="slide" id="slide-1">
+  <div class="cover-bg"></div>
+  <div class="particles" id="particles"></div>
+
+  <div class="cover-tag">Seed Round · 2025 · Canada</div>
+
+  <h1 class="cover-title">Vo<span class="u-letter">u</span>ch</h1>
+
+  <p class="cover-tagline">The Trust Layer for Hiring</p>
+
+  <div class="cover-meta">
+    <div class="cover-meta-item">Founders: <span>Joshua Lakdawala · Esha Shah · Tvesha Shah</span></div>
+    <div class="cover-meta-item">Raising: <span>$750K CAD</span></div>
+    <div class="cover-meta-item">Stage: <span>Pre-Revenue · Pre-Seed</span></div>
+  </div>
+
+  <div class="cover-line"></div>
+
+  <div class="floating-stat">
+    <div class="f-stat">
+      <div class="f-stat-num">8.6×</div>
+      <div class="f-stat-label">growth in AI-assisted job applications since 2022</div>
+    </div>
+    <div class="f-stat">
+      <div class="f-stat-num">58%</div>
+      <div class="f-stat-label">of employers caught a resume lie in 2023</div>
+    </div>
+    <div class="f-stat">
+      <div class="f-stat-num">$0</div>
+      <div class="f-stat-label">dedicated AI reference intelligence platforms in Canada</div>
+    </div>
+  </div>
+
+  <div class="scroll-hint">
+    <div class="scroll-hint-text">Scroll</div>
+    <div class="scroll-hint-arrow"></div>
+  </div>
+
+  <div class="source">Powered by AI. Driven by People.</div>
+</section>
+
+<!-- ══════════════ SLIDE 2: PROBLEM ══════════════ -->
+<section class="slide" id="slide-2">
+  <div class="slide-grid-2">
+    <div>
+      <div class="section-label">The Problem</div>
+      <h2 class="mega-title">AI made<br>everyone<br>look<br><span class="teal">perfect.</span></h2>
+      <p class="problem-text">
+        Candidates use AI to write resumes, ace interviews, and optimise every application. Recruiters are processing more applicants than ever — and trusting the signal less than ever.
+      </p>
+      <div class="stat-callout">
+        <div class="stat-callout-num">58%</div>
+        <div class="stat-callout-text">of employers caught a resume lie in 2023 — up from 32% in 2018</div>
+      </div>
+    </div>
+    <div>
+      <div id="chart-applications"></div>
+    </div>
+  </div>
+  <div class="source">Source: LinkedIn Talent Solutions 2024; Greenhouse Hiring Benchmark 2024; HireRight Employment Screening Benchmark 2023</div>
+</section>
+
+<!-- ══════════════ SLIDE 3: THE GAP ══════════════ -->
+<section class="slide" id="slide-3">
+  <div class="section-label" style="color:var(--teal-dark)">The Gap</div>
+  <div class="gap-quote">
+    "References are the <em>strongest signal</em> in hiring — and the <em>worst product</em> in recruiting."
+  </div>
+  <div class="gap-cards">
+    <div class="gap-card">
+      <div class="gap-card-label">Most Trusted Signal</div>
+      <div class="gap-card-num">80<span style="font-size:36px">%</span></div>
+      <div class="gap-card-desc">of HR professionals rate references as "very" or "extremely" valuable for hiring decisions</div>
+    </div>
+    <div class="gap-card">
+      <div class="gap-card-label">Almost Never Finished</div>
+      <div class="gap-card-num">&lt;26<span style="font-size:36px">%</span></div>
+      <div class="gap-card-desc">of recruiters complete all planned reference checks within their expected hiring window</div>
+    </div>
+    <div class="gap-card">
+      <div class="gap-card-label">Days Wasted Per Hire</div>
+      <div class="gap-card-num">3–5</div>
+      <div class="gap-card-desc">business days lost per hire chasing reference contacts, responses, and scheduling</div>
+    </div>
+  </div>
+  <div class="source">Source: SHRM Talent Acquisition Benchmarking Report 2023; SkillSurvey Reference Completion Study 2022; HireRight Benchmark 2023</div>
+</section>
+
+<!-- ══════════════ SLIDE 4: SOLUTION ══════════════ -->
+<section class="slide" id="slide-4">
+  <div class="section-label">The Solution</div>
+  <div class="solution-grid">
+    <div>
+      <h2 class="mega-title" style="font-size:clamp(44px,6vw,80px)">References.<br><span class="teal">Rebuilt.</span></h2>
+      <p class="problem-text">Vouch replaces the phone-tag reference check with an AI-structured form — tailored to the role, the candidate, and the referee relationship. Faster. Comparable. Actually useful.</p>
+
+      <div class="solution-steps" id="solutionSteps">
+        <div class="step active" data-panel="0" onclick="setStep(0)">
+          <div class="step-num">01</div>
+          <div>
+            <div class="step-title">Recruiter uploads job description</div>
+            <div class="step-desc">Role context shapes every question asked</div>
+          </div>
+        </div>
+        <div class="step" data-panel="1" onclick="setStep(1)">
+          <div class="step-num">02</div>
+          <div>
+            <div class="step-title">Candidate submits references</div>
+            <div class="step-desc">Frictionless invite to reference contacts</div>
+          </div>
+        </div>
+        <div class="step" data-panel="2" onclick="setStep(2)">
+          <div class="step-num">03</div>
+          <div>
+            <div class="step-title">Vouch sends AI-tailored form</div>
+            <div class="step-desc">Dynamic questions per role and relationship</div>
+          </div>
+        </div>
+        <div class="step" data-panel="3" onclick="setStep(3)">
+          <div class="step-num">04</div>
+          <div>
+            <div class="step-title">Structured insights delivered</div>
+            <div class="step-desc">Comparable signal — ready to act on</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="product-demo">
+      <div class="demo-header">
+        <div class="demo-dot"></div><div class="demo-dot"></div><div class="demo-dot"></div>
+        <span style="margin-left:8px;font-size:12px;color:var(--text-muted)">vouch · reference intelligence</span>
+      </div>
+      <div class="demo-body">
+
+        <div class="demo-panel active" id="panel-0">
+          <div class="demo-title">📄 Job Description Analysis</div>
+          <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Role detected</div>
+            <div style="font-size:16px;font-weight:700;">Senior Product Manager</div>
+            <div style="font-size:12px;color:var(--teal);margin-top:4px;">Healthcare · Mid-Senior · Team Lead</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+            <span style="background:rgba(45,212,191,0.1);color:var(--teal);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">Cross-functional</span>
+            <span style="background:rgba(45,212,191,0.1);color:var(--teal);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">Stakeholder mgmt</span>
+            <span style="background:rgba(45,212,191,0.1);color:var(--teal);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">Data-driven</span>
+            <span style="background:rgba(45,212,191,0.1);color:var(--teal);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;">Delivery under pressure</span>
+          </div>
+          <div class="demo-badge badge-green">✓ 12 tailored questions generated</div>
+        </div>
+
+        <div class="demo-panel" id="panel-1">
+          <div class="demo-title">👤 Referee Network</div>
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:14px;font-weight:700;">Sarah Chen</div>
+                <div style="font-size:12px;color:var(--text-muted);">Former Manager · Google</div>
+              </div>
+              <div class="demo-badge badge-green" style="margin-top:0">✓ Responded</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:14px;font-weight:700;">Marcus J.</div>
+                <div style="font-size:12px;color:var(--text-muted);">Peer · Shopify</div>
+              </div>
+              <div class="demo-badge badge-yellow" style="margin-top:0">⏳ Pending</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:14px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:14px;font-weight:700;">Alex Kim</div>
+                <div style="font-size:12px;color:var(--text-muted);">Direct Report · Capital One</div>
+              </div>
+              <div class="demo-badge badge-green" style="margin-top:0">✓ Responded</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="demo-panel" id="panel-2">
+          <div class="demo-title">🤖 AI-Tailored Questions</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:14px;">
+              <div style="font-size:10px;color:var(--teal);font-weight:700;letter-spacing:1px;margin-bottom:6px;">FOR MANAGER</div>
+              <div style="font-size:13px;color:var(--off-white);">"Describe a time when [Candidate] had to deliver under conflicting stakeholder pressures. What was the outcome?"</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:14px;">
+              <div style="font-size:10px;color:var(--teal);font-weight:700;letter-spacing:1px;margin-bottom:6px;">FOR PEER</div>
+              <div style="font-size:13px;color:var(--off-white);">"How did [Candidate] handle disagreements within the team? Give a specific example."</div>
+            </div>
+            <div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:14px;">
+              <div style="font-size:10px;color:var(--teal);font-weight:700;letter-spacing:1px;margin-bottom:6px;">FOR DIRECT REPORT</div>
+              <div style="font-size:13px;color:var(--off-white);">"How did [Candidate] support your growth? Would you work for them again?"</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="demo-panel" id="panel-3">
+          <div class="demo-title">📊 Structured Insight Report</div>
+          <div id="scoreDisplay">
+            <div class="score-row">
+              <div class="score-label">Delivery</div>
+              <div class="score-bar-bg"><div class="score-bar-fill" style="width:88%"></div></div>
+              <div class="score-val">8.8</div>
+            </div>
+            <div class="score-row">
+              <div class="score-label">Communication</div>
+              <div class="score-bar-bg"><div class="score-bar-fill" style="width:92%"></div></div>
+              <div class="score-val">9.2</div>
+            </div>
+            <div class="score-row">
+              <div class="score-label">Leadership</div>
+              <div class="score-bar-bg"><div class="score-bar-fill" style="width:75%"></div></div>
+              <div class="score-val">7.5</div>
+            </div>
+            <div class="score-row">
+              <div class="score-label">Culture Fit</div>
+              <div class="score-bar-bg"><div class="score-bar-fill" style="width:85%"></div></div>
+              <div class="score-val">8.5</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <div class="demo-badge badge-green">✓ Strong recommendation</div>
+            <div class="demo-badge badge-red">⚠ Flag: delegating ambiguity</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ SLIDE 5: MARKET ══════════════ -->
+<section class="slide" id="slide-5">
+  <div class="section-label" style="color:var(--teal-dark)">The Market</div>
+  <div class="market-grid">
+    <div>
+      <h2 class="mega-title" style="color:var(--black);font-size:clamp(48px,6vw,80px)">Canada first.<br>Global by design.</h2>
+      <p class="problem-text" style="color:var(--text-dim)">Starting with 127K mid-market Canadian employers. Zero dedicated AI-native reference intelligence platforms today.</p>
+
+      <div class="sector-list">
+        <div class="sector-item">
+          <div class="sector-bar"></div>
+          <div>
+            <div class="sector-name">Healthcare</div>
+            <div class="sector-desc">Compliance-critical · frequent high-stakes hiring</div>
+          </div>
+        </div>
+        <div class="sector-item">
+          <div class="sector-bar"></div>
+          <div>
+            <div class="sector-name">Professional Services</div>
+            <div class="sector-desc">Trust-sensitive placements · reference = proof</div>
+          </div>
+        </div>
+        <div class="sector-item">
+          <div class="sector-bar"></div>
+          <div>
+            <div class="sector-name">Staffing Agencies</div>
+            <div class="sector-desc">Volume hiring · speed is the competitive edge</div>
+          </div>
+        </div>
+        <div class="sector-item">
+          <div class="sector-bar"></div>
+          <div>
+            <div class="sector-name">Financial Services</div>
+            <div class="sector-desc">Regulatory reference requirements</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="tam-visual">
+        <div class="circle-outer c1"></div>
+        <div class="circle-outer c2"></div>
+        <div class="circle-outer c3">
+          <div class="circle-label">SOM</div>
+          <div class="circle-num" style="font-size:14px">1,000</div>
+          <div class="circle-sub">co's</div>
+        </div>
+        <!-- Labels outside -->
+        <div style="position:absolute;top:4px;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">TAM</span>
+          <span style="font-size:18px;font-weight:900;color:var(--black);margin-left:6px">~1.1M</span>
+          <span style="font-size:11px;color:var(--text-dim);margin-left:4px">Canadian employers</span>
+        </div>
+        <div style="position:absolute;top:50px;left:50%;transform:translateX(-50%);text-align:center;white-space:nowrap;">
+          <span style="font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--text-dim)">SAM</span>
+          <span style="font-size:15px;font-weight:900;color:var(--black);margin-left:6px">~127K</span>
+          <span style="font-size:11px;color:var(--text-dim);margin-left:4px">20+ employees</span>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:16px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,0.08);margin-top:24px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--teal-dark);margin-bottom:16px;">Bottom-Up Revenue Model</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="text-align:center;padding:16px;background:rgba(45,212,191,0.06);border-radius:8px;">
+            <div style="font-size:28px;font-weight:900;color:var(--black);">$3.2M</div>
+            <div style="font-size:11px;color:var(--text-dim);">Year 1 ARR potential<br>(pay-per-check only)</div>
+          </div>
+          <div style="text-align:center;padding:16px;background:rgba(45,212,191,0.1);border-radius:8px;border:1px solid rgba(45,212,191,0.3);">
+            <div style="font-size:28px;font-weight:900;color:var(--black);">$40.6M</div>
+            <div style="font-size:11px;color:var(--text-dim);">SAM at 100%<br>penetration</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="source">Source: Statistics Canada Business Register 2024; CFIB Business Barometer 2024; IBISWorld Background Check Services 2025</div>
+</section>
+
+<!-- ══════════════ SLIDE 6: BUSINESS MODEL ══════════════ -->
+<section class="slide" id="slide-6">
+  <div class="section-label">Business Model</div>
+  <h2 class="mega-title" style="font-size:clamp(44px,6vw,80px)">Simple to start.<br><span class="teal">Deep as you scale.</span></h2>
+
+  <div class="pricing-grid">
+    <div class="pricing-card" style="position:relative;">
+      <div class="pricing-tier">Now</div>
+      <div class="pricing-name">Pay Per Check</div>
+      <div class="pricing-price">$20</div>
+      <div class="pricing-period">/ reference</div>
+      <ul class="pricing-features">
+        <li>Zero commitment</li>
+        <li>Instant activation</li>
+        <li>No integration needed</li>
+        <li>Results in 24 hours</li>
+      </ul>
+      <div class="pricing-arr">1K cos × 60 refs = <span>$1.2M ARR</span></div>
+      <div class="arrow-flow">→</div>
+    </div>
+
+    <div class="pricing-card featured" style="position:relative;">
+      <div class="pricing-tier">Next</div>
+      <div class="pricing-name">Recruiter Plan</div>
+      <div class="pricing-price">$299</div>
+      <div class="pricing-period">/ month per seat</div>
+      <ul class="pricing-features">
+        <li>Unlimited checks</li>
+        <li>ATS integrations</li>
+        <li>Team dashboards</li>
+        <li>Benchmarking</li>
+      </ul>
+      <div class="pricing-arr">500 teams × $299 = <span>$1.8M ARR</span></div>
+      <div class="arrow-flow">→</div>
+    </div>
+
+    <div class="pricing-card" style="position:relative;">
+      <div class="pricing-tier">Scale</div>
+      <div class="pricing-name">Enterprise</div>
+      <div class="pricing-price">$2K<span style="font-size:36px">+</span></div>
+      <div class="pricing-period">/ month</div>
+      <ul class="pricing-features">
+        <li>Custom benchmarks</li>
+        <li>Trust analytics API</li>
+        <li>White-label option</li>
+        <li>HRIS integration</li>
+      </ul>
+      <div class="pricing-arr">50 enterprise × $3K = <span>$1.8M ARR</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ SLIDE 7: WHY NOW ══════════════ -->
+<section class="slide" id="slide-7">
+  <div class="section-label">Why Now</div>
+  <h2 class="mega-title" style="font-size:clamp(44px,6vw,80px)">AI broke trust in hiring.<br><span class="teal">Vouch rebuilds it.</span></h2>
+
+  <div class="why-grid" id="whyGrid">
+    <div class="why-card">
+      <div class="why-num-label">01</div>
+      <div class="why-card-title">AI flooded the funnel</div>
+      <div class="why-big-num">8.6<span style="font-size:36px">×</span></div>
+      <div class="why-card-desc">Growth in AI-assisted applications since 2022. Generative AI made it trivially easy to craft a perfect application for any role. Recruiters can't separate signal from noise.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-num-label">02</div>
+      <div class="why-card-title">Bad hires are costly</div>
+      <div class="why-big-num">30<span style="font-size:36px">%</span></div>
+      <div class="why-card-desc">of first-year salary — cost of one wrong hire. At a $75K average salary that's $22,500 per bad hire. Trust at the point of decision is financial, not philosophical.</div>
+    </div>
+    <div class="why-card">
+      <div class="why-num-label">03</div>
+      <div class="why-card-title">References: the last gap</div>
+      <div class="why-big-num">0</div>
+      <div class="why-card-desc">Dedicated reference intelligence platforms in Canada. ATS, assessments, and video interviews all have incumbents. References remain the last analogue step in a digital stack.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ SLIDE 8: DEFENSIBILITY ══════════════ -->
+<section class="slide" id="slide-8">
+  <div class="section-label">Defensibility</div>
+  <h2 class="mega-title" style="font-size:clamp(44px,6vw,80px)">Data compounds.<br><span class="teal">Moat deepens.</span></h2>
+
+  <div class="defense-grid">
+    <div class="moat-list">
+      <div class="moat-item">
+        <div class="moat-icon">📊</div>
+        <div>
+          <div class="moat-title">Data Moat</div>
+          <div class="moat-desc">Structured behavioural reference data across roles, industries, and company types. Benchmarks competitors cannot buy — only earned check by check.</div>
+        </div>
+      </div>
+      <div class="moat-item">
+        <div class="moat-icon">🔗</div>
+        <div>
+          <div class="moat-title">Workflow Moat</div>
+          <div class="moat-desc">Once embedded in ATS workflows (Greenhouse, Lever), removing Vouch requires both technical migration and change management. Switching cost compounds.</div>
+        </div>
+      </div>
+      <div class="moat-item">
+        <div class="moat-icon">🛡️</div>
+        <div>
+          <div class="moat-title">Trust Graph</div>
+          <div class="moat-desc">A growing graph of candidate-reference credibility. Models trained on who actually performs vs. who only looks good on paper. Network effect compounds with every check.</div>
+        </div>
+      </div>
+      <div class="moat-item">
+        <div class="moat-icon">⚖️</div>
+        <div>
+          <div class="moat-title">Regulatory Moat (PIPEDA)</div>
+          <div class="moat-desc">PIPEDA-native from day one. Canadian data residency (AWS ca-central-1), explicit referee consent, right-to-delete. U.S. competitors would need non-trivial engineering investment to match.</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chart-flywheel"></div>
+  </div>
+</section>
+
+<!-- ══════════════ SLIDE 9: TEAM ══════════════ -->
+<section class="slide" id="slide-9">
+  <div class="section-label" style="color:var(--teal-dark)">The Team</div>
+  <h2 class="mega-title" style="color:var(--black);font-size:clamp(44px,6vw,80px)">The right team<br>at the right time.</h2>
+
+  <div class="team-grid">
+    <div class="team-card">
+      <div class="team-avatar">J</div>
+      <div class="team-name">Joshua Lakdawala</div>
+      <div class="team-role">Co-Founder</div>
+      <div class="team-title-badge">CEO · Strategy</div>
+      <div class="team-divider"></div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Capital One — witnessed reference checking failure at enterprise scale firsthand</div>
+      </div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Deep expertise in HR tech, talent acquisition, and go-to-market strategy</div>
+      </div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Led discovery with 40+ recruiting & HR leaders before building v1</div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">E</div>
+      <div class="team-name">Esha Shah</div>
+      <div class="team-role">Co-Founder</div>
+      <div class="team-title-badge">CPO · Product</div>
+      <div class="team-divider"></div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Product Data Scientist at Shopify — builds AI-powered products at scale</div>
+      </div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Capital One — deep enterprise hiring pain point and compliance experience</div>
+      </div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Secured 3 design partners and 2 signed LOIs pre-launch</div>
+      </div>
+    </div>
+    <div class="team-card">
+      <div class="team-avatar">T</div>
+      <div class="team-name">Tvesha Shah</div>
+      <div class="team-role">Co-Founder</div>
+      <div class="team-title-badge">CTO · Engineering</div>
+      <div class="team-divider"></div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Software Engineer at Shopify — builds production systems at massive scale</div>
+      </div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Expertise in full-stack architecture, LLM integration, and PIPEDA-compliant data systems</div>
+      </div>
+      <div class="team-bullet">
+        <div class="team-bullet-bar"></div>
+        <div class="team-bullet-text">Leading Next.js + Supabase + GPT-4o platform build from zero to production</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;background:white;border-radius:12px;padding:16px 24px;display:flex;gap:36px;align-items:center;flex-wrap:wrap;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+    <div style="text-align:center;">
+      <div style="font-size:28px;font-weight:900;color:var(--black);">40+</div>
+      <div style="font-size:11px;color:var(--text-dim);">Discovery interviews</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:28px;font-weight:900;color:var(--black);">3</div>
+      <div style="font-size:11px;color:var(--text-dim);">Design partners committed</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:28px;font-weight:900;color:var(--black);">2</div>
+      <div style="font-size:11px;color:var(--text-dim);">LOIs signed</div>
+    </div>
+    <div style="text-align:center;">
+      <div style="font-size:28px;font-weight:900;color:var(--black);">100%</div>
+      <div style="font-size:11px;color:var(--text-dim);">Described refs as broken</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ SLIDE 10: THE ASK ══════════════ -->
+<section class="slide" id="slide-10">
+  <div class="ask-grid">
+    <div>
+      <div class="section-label">The Ask</div>
+      <div class="ask-headline">
+        In an AI-first world, trust becomes<br>
+        <span class="teal">the missing layer.</span>
+      </div>
+      <div class="ask-sub">Vouch owns that layer.</div>
+      <div class="ask-contact">hello@vouchref.com</div>
+    </div>
+
+    <div class="ask-card">
+      <div style="font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:var(--teal);margin-bottom:12px;">Seed Round</div>
+      <div class="ask-amount">$750K</div>
+      <div class="ask-currency">CAD</div>
+
+      <div class="ask-divider"></div>
+
+      <div class="ask-use-title">Use of Funds</div>
+      <div class="use-bar-row">
+        <div class="use-bar-item">
+          <div class="use-bar-label">Product & Engineering <span>50%</span></div>
+          <div class="use-bar-bg"><div class="use-bar-fill" id="bar1" style="width:50%"></div></div>
+        </div>
+        <div class="use-bar-item">
+          <div class="use-bar-label">Sales & Customer Success <span>30%</span></div>
+          <div class="use-bar-bg"><div class="use-bar-fill" id="bar2" style="width:30%"></div></div>
+        </div>
+        <div class="use-bar-item">
+          <div class="use-bar-label">Operations & Legal <span>20%</span></div>
+          <div class="use-bar-bg"><div class="use-bar-fill" id="bar3" style="width:20%"></div></div>
+        </div>
+      </div>
+
+      <div class="ask-divider"></div>
+
+      <div class="targets-box">
+        <div class="targets-label">18-Month Targets</div>
+        <div class="targets-list">
+          <div class="target-item"><strong>100</strong> customers</div>
+          <div class="target-item"><strong>$500K</strong> ARR</div>
+          <div class="target-item"><strong>Series A</strong> ready</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+// ── PARTICLES ──
+function createParticles() {
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.setProperty('--drift', (Math.random() - 0.5) * 200 + 'px');
+    p.style.animationDuration = (8 + Math.random() * 12) + 's';
+    p.style.animationDelay = (Math.random() * 10) + 's';
+    p.style.width = p.style.height = (1 + Math.random() * 3) + 'px';
+    container.appendChild(p);
+  }
+}
+createParticles();
+
+// ── NAV DOTS ──
+const SLIDE_COUNT = 10;
+const navDots = document.getElementById('navDots');
+for (let i = 0; i < SLIDE_COUNT; i++) {
+  const dot = document.createElement('button');
+  dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+  dot.addEventListener('click', () => scrollToSlide(i + 1));
+  navDots.appendChild(dot);
+}
+
+// ── SCROLL TRACKING ──
+let currentSlideNum = 1;
+
+function updateNav(slideNum) {
+  currentSlideNum = slideNum;
+  document.getElementById('currentSlide').textContent = String(slideNum).padStart(2, '0');
+  document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === slideNum - 1));
+  document.getElementById('progressBar').style.width = ((slideNum / SLIDE_COUNT) * 100) + '%';
+}
+
+function scrollToSlide(n) {
+  document.getElementById('slide-' + n).scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (currentSlideNum > 1) scrollToSlide(currentSlideNum - 1);
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (currentSlideNum < SLIDE_COUNT) scrollToSlide(currentSlideNum + 1);
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    if (currentSlideNum < SLIDE_COUNT) scrollToSlide(currentSlideNum + 1);
+  } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    if (currentSlideNum > 1) scrollToSlide(currentSlideNum - 1);
+  }
+});
+
+// Intersection Observer
+const slides = document.querySelectorAll('.slide');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+      const num = parseInt(entry.target.id.split('-')[1]);
+      updateNav(num);
+      onSlideEnter(num);
+    }
+  });
+}, { threshold: 0.5 });
+
+slides.forEach(s => observer.observe(s));
+
+// ── CHARTS ──
+
+// Slide 2: Applications chart — animated bar-by-bar grow
+function initChart2() {
+  const years = ['2018', '2019', '2020', '2021', '2022', '2023', '2024'];
+  const apps =  [ 29,    36,    52,    79,    126,   198,   222];
+
+  const layout = {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor:  'rgba(0,0,0,0)',
+    margin: { t: 44, r: 24, b: 44, l: 56 },
+    xaxis: {
+      color: '#666',
+      tickfont: { family: 'Inter', size: 12 },
+      gridcolor: 'rgba(255,255,255,0.04)',
+      fixedrange: true,
+    },
+    yaxis: {
+      color: '#666',
+      tickfont: { family: 'Inter', size: 12 },
+      gridcolor: 'rgba(255,255,255,0.06)',
+      range: [0, 260],           // ← explicit ceiling so labels never clip
+      fixedrange: true,
+      title: { text: 'Applications per open role (avg)', font: { color: '#555', size: 11 } }
+    },
+    annotations: [{
+      x: '2022', y: 126,
+      text: 'ChatGPT launches →',
+      showarrow: false,
+      font: { color: '#2DD4BF', size: 11, family: 'Inter' },
+      xanchor: 'right',
+      yanchor: 'bottom',
+      yshift: 8,
+    }],
+    bargap: 0.35,
+  };
+
+  const config = { displayModeBar: false, responsive: true };
+
+  // Start from zero then animate up
+  Plotly.newPlot('chart-applications', [{
+    x: years,
+    y: apps.map(() => 0),
+    type: 'bar',
+    marker: {
+      color: apps.map((_, i) => i === 6 ? '#2DD4BF' : 'rgba(45,212,191,0.4)'),
+      line: { width: 0 },
+    },
+    text: apps.map(String),
+    textposition: 'outside',
+    textfont: { color: '#2DD4BF', size: 13, family: 'Inter, sans-serif' },
+    cliponaxis: false,
+    hovertemplate: '<b>%{x}</b><br>%{y} applications per role<extra></extra>',
+  }], layout, config).then(() => {
+    Plotly.animate('chart-applications', {
+      data: [{ y: apps }],
+      traces: [0],
+    }, {
+      transition: { duration: 900, easing: 'cubic-in-out' },
+      frame: { duration: 900, redraw: false },
+    });
+  });
+}
+
+// Slide 8: Flywheel chart — animated
+function initChartFlywheel() {
+  const quarters = ['Q1 2025', 'Q2 2025', 'Q3 2025', 'Q4 2025'];
+  const checks   = [50, 380, 1600, 5800];
+
+  const layout = {
+    paper_bgcolor: 'rgba(0,0,0,0)',
+    plot_bgcolor:  'rgba(0,0,0,0)',
+    margin: { t: 44, r: 24, b: 44, l: 64 },
+    title: {
+      text: 'Reference Insights Processed — Illustrative',
+      font: { color: '#555', size: 12, family: 'Inter' },
+      x: 0.5,
+    },
+    xaxis: {
+      color: '#555',
+      tickfont: { family: 'Inter', size: 12 },
+      gridcolor: 'rgba(255,255,255,0.04)',
+      fixedrange: true,
+    },
+    yaxis: {
+      color: '#555',
+      tickfont: { family: 'Inter', size: 12 },
+      gridcolor: 'rgba(255,255,255,0.06)',
+      range: [0, 6600],          // ← explicit ceiling
+      fixedrange: true,
+    },
+    bargap: 0.35,
+  };
+
+  const config = { displayModeBar: false, responsive: true };
+
+  Plotly.newPlot('chart-flywheel', [{
+    x: quarters,
+    y: checks.map(() => 0),
+    type: 'bar',
+    marker: {
+      color: ['rgba(45,212,191,0.4)', 'rgba(45,212,191,0.55)', 'rgba(45,212,191,0.75)', '#2DD4BF'],
+      line: { width: 0 },
+    },
+    text: checks.map(v => v.toLocaleString()),
+    textposition: 'outside',
+    textfont: { color: '#2DD4BF', size: 13, family: 'Inter, sans-serif' },
+    cliponaxis: false,
+    hovertemplate: '<b>%{x}</b><br>%{y:,} reference insights<extra></extra>',
+  }], layout, config).then(() => {
+    Plotly.animate('chart-flywheel', {
+      data: [{ y: checks }],
+      traces: [0],
+    }, {
+      transition: { duration: 1000, easing: 'cubic-in-out' },
+      frame: { duration: 1000, redraw: false },
+    });
+  });
+}
+
+let chartsInited = {};
+
+function onSlideEnter(n) {
+  if (n === 2 && !chartsInited[2]) { chartsInited[2] = true; initChart2(); }
+  if (n === 3) {
+    document.querySelectorAll('.gap-card').forEach((c, i) => {
+      setTimeout(() => c.classList.add('visible'), i * 150);
+    });
+  }
+  if (n === 7) {
+    document.querySelectorAll('.why-card').forEach((c, i) => {
+      setTimeout(() => c.classList.add('visible'), i * 180);
+    });
+  }
+  if (n === 8 && !chartsInited[8]) { chartsInited[8] = true; initChartFlywheel(); }
+  if (n === 10) {
+    // Animate bars
+    setTimeout(() => {
+      document.getElementById('bar1').style.width = '50%';
+      document.getElementById('bar2').style.width = '30%';
+      document.getElementById('bar3').style.width = '20%';
+    }, 300);
+  }
+  if (n === 4) {
+    // Trigger score bars animation
+    setTimeout(() => {
+      document.querySelectorAll('.score-bar-fill').forEach(b => {
+        const w = b.style.width;
+        b.style.width = '0';
+        setTimeout(() => { b.style.width = w; }, 100);
+      });
+    }, 200);
+  }
+}
+
+// ── SOLUTION STEPS ──
+let stepInterval;
+
+function setStep(idx) {
+  clearInterval(stepInterval);
+  document.querySelectorAll('.step').forEach((s, i) => s.classList.toggle('active', i === idx));
+  document.querySelectorAll('.demo-panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+  if (idx === 3) {
+    setTimeout(() => {
+      document.querySelectorAll('.score-bar-fill').forEach(b => {
+        const w = b.style.width;
+        b.style.width = '0';
+        setTimeout(() => { b.style.width = w; }, 50);
+      });
+    }, 100);
+  }
+  stepInterval = setInterval(() => {
+    const next = (idx + 1) % 4;
+    setStep(next);
+    idx = next;
+  }, 3500);
+}
+
+// Auto-cycle steps
+let stepIdx = 0;
+stepInterval = setInterval(() => {
+  stepIdx = (stepIdx + 1) % 4;
+  setStep(stepIdx);
+}, 3500);
+
+// Init bars at 0 then animate on slide enter
+document.querySelectorAll('.use-bar-fill').forEach(b => { b.dataset.target = b.style.width; b.style.width = '0'; });
+
+// ── PDF SAVE ──
+function savePDF() {
+  // Make all animated elements visible before printing
+  document.querySelectorAll('.gap-card, .why-card').forEach(el => el.classList.add('visible'));
+  document.querySelectorAll('.use-bar-fill').forEach(b => { b.style.width = b.dataset.target || b.style.width; });
+
+  const btn = document.getElementById('pdfBtn');
+  btn.textContent = '⏳ Preparing...';
+  btn.style.pointerEvents = 'none';
+
+  setTimeout(() => {
+    window.print();
+    btn.innerHTML = '⬇ Save PDF';
+    btn.style.pointerEvents = '';
+  }, 400);
+}
+
+</script>
+</body>
+</html>
